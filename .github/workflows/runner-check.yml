@@ -1,0 +1,31 @@
+
+name: Runner Environment Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check runner information
+        run: |
+          echo "=== SYSTEM ==="
+          uname -a
+          lsb_release -a
+
+          echo "=== CPU ==="
+          nproc
+          lscpu
+
+          echo "=== MEMORY ==="
+          free -h
+
+          echo "=== STORAGE ==="
+          df -h
+
+          echo "=== TOOLCHAIN ==="
+          gcc --version
+          make --version
+          python3 --version
