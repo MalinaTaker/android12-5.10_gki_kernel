@@ -1,5 +1,4 @@
-
-name: Novri Kernel - GKI Source Check
+name: Novri Kernel - AOSP Source Sync
 
 on:
   workflow_dispatch:
@@ -11,35 +10,58 @@ permissions:
   contents: read
 
 jobs:
-  source-check:
-    name: Verify Android Common Kernel
+  source-sync:
+    name: Sync Android 12 GKI Source
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
 
     steps:
-      - name: Install dependencies
+      - name: Install Repo tool
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git
+          mkdir -p "$HOME/bin"
+          curl -sSf https://storage.googleapis.com/git-repo-downloads/repo \
+            -o "$HOME/bin/repo"
+          chmod a+x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
 
-      - name: Clone Android Common Kernel
+      - name: Initialize Android Kernel manifest
         run: |
-          git clone \
-            --depth=1 \
-            --branch android12-5.10-2026-10_r1 \
-            https://android.googlesource.com/kernel/common.git \
-            kernel
+          mkdir android-kernel
+          cd android-kernel
 
-      - name: Verify source
-        working-directory: kernel
+          repo init \
+            -u https://android.googlesource.com/kernel/manifest \
+            -b common-android12-5.10-2026-10
+
+      - name: Sync source repositories
+        working-directory: android-kernel
         run: |
-          echo "===== SOURCE TAG ====="
-          git describe --tags --exact-match
+          repo sync -c -j4 --fail-fast
 
-          echo "===== SOURCE COMMIT ====="
-          git rev-parse HEAD
-
+      - name: Verify kernel source
+        working-directory: android-kernel
+        run: |
           echo "===== KERNEL VERSION ====="
-          head -n 5 Makefile
+          head -n 5 common/Makefile
+
+          echo "===== KERNEL COMMIT ====="
+          git -C common rev-parse HEAD
 
           echo "===== BUILD SCRIPT ====="
-          test -f build/build.sh && echo "build.sh exists"
+          test -f build/build.sh
+          echo "Build script exists!"
+
+          echo "===== GKI CONFIG ====="
+          test -f common/build.config.gki.aarch64
+          echo "ARM64 GKI config exists!"
+
+          echo "===== CLANG TOOLCHAIN ====="
+          find prebuilts-master/clang/host/linux-x86 \
+            -maxdepth 2 -type d | head -n 10
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: Novri-GKI-Source-Manifest
+          path: android-kernel/.repo/manifests/
+          retention-days: 7
