@@ -1,0 +1,15 @@
+- name: Clone Android Common Kernel
+  run: |
+    git clone \
+      --depth=1 \
+      --branch android12-5.10-2026-10_r1 \
+      https://android.googlesource.com/kernel/common.git \
+      kernel
+
+    cd kernel
+
+    echo "Source tag:"
+    git describe --tags --exact-match
+
+    echo "Source commit:"
+    git rev-parse HEAD
