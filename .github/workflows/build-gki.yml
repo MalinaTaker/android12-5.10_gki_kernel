@@ -1,15 +1,45 @@
-- name: Clone Android Common Kernel
-  run: |
-    git clone \
-      --depth=1 \
-      --branch android12-5.10-2026-10_r1 \
-      https://android.googlesource.com/kernel/common.git \
-      kernel
 
-    cd kernel
+name: Novri Kernel - GKI Source Check
 
-    echo "Source tag:"
-    git describe --tags --exact-match
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-gki.yml"
 
-    echo "Source commit:"
-    git rev-parse HEAD
+permissions:
+  contents: read
+
+jobs:
+  source-check:
+    name: Verify Android Common Kernel
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git
+
+      - name: Clone Android Common Kernel
+        run: |
+          git clone \
+            --depth=1 \
+            --branch android12-5.10-2026-10_r1 \
+            https://android.googlesource.com/kernel/common.git \
+            kernel
+
+      - name: Verify source
+        working-directory: kernel
+        run: |
+          echo "===== SOURCE TAG ====="
+          git describe --tags --exact-match
+
+          echo "===== SOURCE COMMIT ====="
+          git rev-parse HEAD
+
+          echo "===== KERNEL VERSION ====="
+          head -n 5 Makefile
+
+          echo "===== BUILD SCRIPT ====="
+          test -f build/build.sh && echo "build.sh exists"
