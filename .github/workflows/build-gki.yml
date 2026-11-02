@@ -1,19 +1,16 @@
-name: Novri Kernel - AOSP Source Sync
+name: Novri Kernel - First GKI Build
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/build-gki.yml"
 
 permissions:
   contents: read
 
 jobs:
-  source-sync:
-    name: Sync Android 12 GKI Source
+  build:
+    name: Build ARM64 GKI 5.10
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 180
 
     steps:
       - name: Install Repo tool
@@ -38,7 +35,7 @@ jobs:
         run: |
           repo sync -c -j4 --fail-fast
 
-      - name: Verify kernel source
+      - name: Verify source and configuration
         working-directory: android-kernel
         run: |
           echo "===== KERNEL VERSION ====="
@@ -49,19 +46,36 @@ jobs:
 
           echo "===== BUILD SCRIPT ====="
           test -f build/build.sh
-          echo "Build script exists!"
 
-          echo "===== GKI CONFIG ====="
+          echo "===== ARM64 GKI CONFIG ====="
           test -f common/build.config.gki.aarch64
-          echo "ARM64 GKI config exists!"
 
-          echo "===== CLANG TOOLCHAIN ====="
+          echo "===== CLANG ====="
           find prebuilts-master/clang/host/linux-x86 \
-            -maxdepth 2 -type d | head -n 10
+            -maxdepth 3 -name clang -type f | head
 
-      - name: Upload manifest
+      - name: Build Novri GKI ARM64
+        working-directory: android-kernel
+        run: |
+          export BUILD_CONFIG=common/build.config.gki.aarch64
+          export LTO=thin
+          export OUT_DIR="$GITHUB_WORKSPACE/out"
+          export DIST_DIR="$GITHUB_WORKSPACE/dist"
+
+          build/build.sh -j4
+
+      - name: Verify build artifacts
+        run: |
+          echo "===== BUILD OUTPUT ====="
+          find dist -maxdepth 3 -type f -printf "%p (%s bytes)\n"
+
+          test -d dist
+          test "$(find dist -type f | wc -l)" -gt 0
+
+      - name: Upload Novri Kernel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Novri-GKI-Source-Manifest
-          path: android-kernel/.repo/manifests/
-          retention-days: 7
+          name: Novri-GKI-5.10.269-ARM64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
